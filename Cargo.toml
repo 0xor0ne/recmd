@@ -1,0 +1,21 @@
+[package]
+name = "recmd"
+version = "0.1.0"
+edition = "2021"
+authors = ["0xor0ne <0xor0ne@gmail.com"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/0xor0ne/recmd"
+documentation = "https://docs.rs/recmd"
+homepage = "https://github.com/0xor0ne/recmd/blob/master/README.md"
+readme = "README.md"
+keywords = ["cli", "redteam", "security", "networking"]
+categories = ["command-line-utilities", "network-programming"]
+description = """
+Execute commands remotely
+"""
+
+[dependencies]
+argh = "0.1.10"
+
+[profile.release]
+strip = "symbols"

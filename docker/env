@@ -1,0 +1,11 @@
+
+# standard build
+CTAG=recmd-docker-build
+CNAME=dybrecmdbuild
+# static build
+CTAGS=recmd-docker-build-static
+CNAMES=staticrecmdbuild
+# Test 
+CTAGT=recmd-docker-test
+CNAMETSRV=testsrvrecmdbuild
+CNAMETSND=testsndrecmdbuild
