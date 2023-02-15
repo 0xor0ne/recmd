@@ -5,6 +5,7 @@ use std::net::{IpAddr, Ipv4Addr};
 mod message;
 mod snd;
 mod srv;
+mod crypt;
 
 use srv::Srv;
 use snd::Snd;
