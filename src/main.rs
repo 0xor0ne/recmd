@@ -2,13 +2,14 @@
 use argh::FromArgs;
 use std::net::{IpAddr, Ipv4Addr};
 
+mod config;
+mod crypt;
 mod message;
 mod snd;
 mod srv;
-mod crypt;
 
-use srv::Srv;
 use snd::Snd;
+use srv::Srv;
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Top-level command.
@@ -50,7 +51,7 @@ fn main() {
             println!("Server mode {}", opts.port);
             let mut srv = Srv::new(opts.port);
             srv.run();
-        },
+        }
         ReCmdModeArg::Snd(opts) => {
             println!("Send mode {} {}", opts.srvip, opts.port);
             let mut snd = Snd::new(IpAddr::V4(opts.srvip), opts.port, 1000);
