@@ -30,7 +30,8 @@ impl Srv {
                 );
                 stream.shutdown(Shutdown::Both).unwrap();
             }
-        } {}
+        }
+        {}
     }
 
     fn recv_simple(&self) {

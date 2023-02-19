@@ -2,14 +2,8 @@
 use argh::FromArgs;
 use std::net::{IpAddr, Ipv4Addr};
 
-mod config;
-mod crypt;
-mod message;
-mod snd;
-mod srv;
-
-use snd::Snd;
-use srv::Srv;
+use recmd::snd::Snd;
+use recmd::srv::Srv;
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Top-level command.

@@ -3,6 +3,7 @@ use sha2::{
     Digest, Sha256,
 };
 
+const HISTORY_DEPTH: usize = 100_000;
 const PASSWORD_DEF: &str = "1e$tob5UtRi6oFr8jlYO";
 
 pub struct Config {

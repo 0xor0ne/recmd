@@ -1,41 +1,43 @@
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
-    XChaCha20Poly1305, XNonce,
-    Error,
+    aead::{
+        generic_array::{typenum::U32, GenericArray},
+        Aead, AeadCore, KeyInit, OsRng,
+    },
+    Error, XChaCha20Poly1305, XNonce,
 };
 
-struct Crypt {
+pub struct Crypt {
     cipher: XChaCha20Poly1305,
 }
 
 impl Crypt {
-    fn new(key: [u8; 32]) -> Self {
+    pub fn new(key: GenericArray<u8, U32>) -> Self {
         Crypt {
-            cipher: XChaCha20Poly1305::new_from_slice(&key).unwrap(),
+            cipher: XChaCha20Poly1305::new(&key),
         }
     }
 
-    fn encrypt(&self, data: &[u8]) -> Result<(XNonce, Vec<u8>), Error> {
+    pub fn encrypt(&self, data: &[u8]) -> Result<(XNonce, Vec<u8>), Error> {
         let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
         let ciphertext = self.cipher.encrypt(&nonce, data)?;
 
         Ok((nonce, ciphertext))
     }
 
-    fn decrypt(&self, nonce: XNonce, data: &[u8]) -> Result<Vec<u8>, Error> {
+    pub fn decrypt(&self, nonce: XNonce, data: &[u8]) -> Result<Vec<u8>, Error> {
         self.cipher.decrypt(&nonce, data)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chacha20poly1305::Error;
     use super::Crypt;
+    use chacha20poly1305::{aead::generic_array::GenericArray, Error};
     #[test]
     fn encrypt_decrypt() {
         let key: [u8; 32] = [0; 32];
         let cleartext: [u8; 8] = [1; 8];
-        let c = Crypt::new(key);
+        let c = Crypt::new(GenericArray::clone_from_slice(&key));
         let (n, ct) = c.encrypt(&cleartext).unwrap();
         let output = c.decrypt(n, &ct).unwrap();
 
@@ -49,7 +51,7 @@ mod tests {
     fn encrypt_corrupt_decrypt() {
         let key: [u8; 32] = [0; 32];
         let cleartext: [u8; 8] = [1; 8];
-        let c = Crypt::new(key);
+        let c = Crypt::new(GenericArray::clone_from_slice(&key));
         let (n, mut ct) = c.encrypt(&cleartext).unwrap();
         ct[0] = ct[0] + 1;
         assert_eq!(c.decrypt(n, &ct), Err(Error));
