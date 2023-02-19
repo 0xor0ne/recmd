@@ -21,6 +21,7 @@ sha2 = "0.10.6"
 bytes = "1.4.0"
 byteorder = "1.4.3"
 nom = "7.1.3"
+shell-words = "1.1.0"
 
 [profile.release]
 strip = "symbols"
