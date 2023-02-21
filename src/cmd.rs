@@ -11,7 +11,7 @@ impl Cmd {
         Cmd { c: String::from(s) }
     }
 
-    pub fn run(&self) -> Result<String, String> {
+    pub fn run(&self) -> Result<Vec<u8>, String> {
         match shell_words::split(&self.c) {
             Ok(v) => {
                 let mut args = Vec::new();
@@ -20,15 +20,13 @@ impl Cmd {
                 }
                 match Command::new(&v[0]).args(&args).output() {
                     Ok(output) => {
-                        let mut out = String::from_utf8_lossy(&output.stdout);
-                        let err = String::from_utf8_lossy(&output.stderr);
+                        let mut out = output.stdout;
 
-                        if err.len() > 0 {
-                            out.to_mut().push('\n');
-                            out.to_mut().push_str(&err);
+                        if output.stderr.len() > 0 {
+                            out.extend(output.stderr);
                         }
 
-                        Ok(out.to_string())
+                        Ok(out)
                     }
                     Err(e) => Err(format!(
                         "Failed to execute the command {} ({})",
@@ -51,7 +49,8 @@ mod tests {
         let c = Cmd::new("echo \"test\"");
         match c.run() {
             Ok(o) => {
-                assert_eq!("test\n", o);
+                let ostr = String::from_utf8_lossy(&o);
+                assert_eq!("test\n", ostr);
             }
             Err(e) => {
                 println!("{}", e);
@@ -65,7 +64,8 @@ mod tests {
         let c = Cmd::new("echo -n \"test\"");
         match c.run() {
             Ok(o) => {
-                assert_eq!("test", o);
+                let ostr = String::from_utf8_lossy(&o);
+                assert_eq!("test", ostr);
             }
             Err(e) => {
                 println!("{}", e);
@@ -79,7 +79,8 @@ mod tests {
         let c = Cmd::new("bash -c 'VAR=test ; echo $VAR'");
         match c.run() {
             Ok(o) => {
-                assert_eq!("test\n", o);
+                let ostr = String::from_utf8_lossy(&o);
+                assert_eq!("test\n", ostr);
             }
             Err(e) => {
                 println!("{}", e);
