@@ -25,3 +25,6 @@ shell-words = "1.1.0"
 
 [profile.release]
 strip = "symbols"
+
+[dev-dependencies]
+hex = "0.4.3"

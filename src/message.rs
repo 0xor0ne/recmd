@@ -26,20 +26,15 @@ use chacha20poly1305::{
     aead::generic_array::{typenum::U24, GenericArray},
     XNonce,
 };
-use nom::{
-    bytes::complete::take,
-    combinator::{map_opt, map_res},
-    number::complete::be_u8,
-    IResult,
-};
+use nom::{bytes::complete::take, combinator::map_opt, number::complete::be_u8, IResult};
+use std::boxed::Box;
 use std::fmt;
 use std::io::Write;
-use std::rc::Rc;
 
 /// Message types:
 /// - DirectCmdReq: request remote command
 /// - DirectCmdRes: response to DirectCmdReq
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ReCmdMsgType {
     DirectCmdReq = 0,
@@ -49,22 +44,22 @@ pub enum ReCmdMsgType {
 
 /// ReCmd Message header:
 #[derive(Debug)]
-struct ReCmdMsgHdr {
-    msg_type: ReCmdMsgType,
-    len: u32,
-    nonce: XNonce,
+pub struct ReCmdMsgHdr {
+    pub msg_type: ReCmdMsgType,
+    pub len: u32,
+    pub nonce: XNonce,
 }
 
 #[derive(Debug)]
-enum ReCmdMsgPayload {
-    DirectCmdReq { ts: u64, m_len: u32, m: String },
-    DirectCmdRes { ts: u64, m_len: u32, m: String },
+pub enum ReCmdMsgPayload {
+    DirectCmdReq { ts: u64, m_len: u32, m: Vec<u8> },
+    DirectCmdRes { ts: u64, m_len: u32, m: Vec<u8> },
 }
 
 #[derive(Debug)]
 pub struct ReCmdMsg {
-    hdr: ReCmdMsgHdr,
-    payload: ReCmdMsgPayload,
+    pub hdr: ReCmdMsgHdr,
+    pub payload: ReCmdMsgPayload,
 }
 
 #[derive(Debug)]
@@ -85,13 +80,26 @@ impl fmt::Display for MessageError {
 }
 
 impl From<nom::Err<nom::error::Error<&[u8]>>> for MessageError {
-    fn from(e: nom::Err<nom::error::Error<&[u8]>>) -> Self {
+    fn from(_e: nom::Err<nom::error::Error<&[u8]>>) -> Self {
         MessageError::ParseError
     }
 }
 
+impl From<MessageError> for std::io::Error {
+    fn from(e: MessageError) -> Self {
+        match e {
+            MessageError::ParseError => {
+                std::io::Error::new(std::io::ErrorKind::Other, "MessageError: ParseError")
+            }
+            MessageError::CryptError => {
+                std::io::Error::new(std::io::ErrorKind::Other, "MessageError: CryptError")
+            }
+        }
+    }
+}
+
 pub struct Message {
-    cipher: Rc<Crypt>,
+    cipher: Box<Crypt>,
 }
 
 impl From<u8> for ReCmdMsgType {
@@ -115,14 +123,14 @@ impl From<ReCmdMsgType> for u8 {
 }
 
 impl Message {
-    pub fn new(cipher: Rc<Crypt>) -> Self {
+    pub fn new(cipher: Box<Crypt>) -> Self {
         Message { cipher }
     }
 
     pub fn encrypt_serialize(
         &self,
         t: ReCmdMsgType,
-        m: &str,
+        m: &Vec<u8>,
         ts: u64,
     ) -> Result<BytesMut, MessageError> {
         let mut b = BytesMut::new();
@@ -134,7 +142,7 @@ impl Message {
         b_payload_clear
             .write_u32::<BigEndian>(m.len().try_into().unwrap())
             .unwrap();
-        b_payload_clear.write(m.as_bytes()).unwrap();
+        b_payload_clear.write(m).unwrap();
         if let Ok((nonce, b_payload_enc)) = self.cipher.encrypt(&b_payload_clear) {
             b.put_u8(t.into());
             let payload_len = b_payload_enc.len() as u32;
@@ -195,18 +203,23 @@ impl Message {
         Ok((i, one))
     }
 
-    fn parse_m(input: &[u8], len: usize) -> IResult<&[u8], &str> {
-        map_res(take(len), |s| std::str::from_utf8(s))(input)
+    fn m_from_slice(p: &[u8]) -> Option<Vec<u8>> {
+        Some(p.to_vec())
     }
 
-    fn parse_payload_dec(input: &[u8]) -> IResult<&[u8], (u64, u32, String)> {
+    fn parse_m(input: &[u8], len: usize) -> IResult<&[u8], Vec<u8>> {
+        map_opt(take(len), Self::m_from_slice)(input)
+        // take(len)(input)
+    }
+
+    fn parse_payload_dec(input: &[u8]) -> IResult<&[u8], (u64, u32, Vec<u8>)> {
         let (i, ts) = Self::parse_ts(input)?;
         let (i, m_len) = Self::parse_m_len(i)?;
         let (i, m) = Self::parse_m(i, m_len.try_into().unwrap())?;
-        Ok((i, (ts, m_len, String::from(m))))
+        Ok((i, (ts, m_len, m)))
     }
 
-    pub fn deserialize_decrypt(&self, data: BytesMut) -> Result<ReCmdMsg, MessageError> {
+    pub fn deserialize_decrypt(&self, data: &Vec<u8>) -> Result<ReCmdMsg, MessageError> {
         // parse type
         let (i, t) = Self::parse_type(&data)?;
         // parse len
@@ -214,7 +227,7 @@ impl Message {
         // parse nonce
         let (i, nonce) = Self::parse_nonce(i)?;
         // parse payload enc
-        let (i, payload_enc) = Self::parse_payload_enc(i, usize::try_from(len).unwrap())?;
+        let (_i, payload_enc) = Self::parse_payload_enc(i, usize::try_from(len).unwrap())?;
         // decrypt
         if let Ok(payload_dec) = self.cipher.decrypt(nonce, &payload_enc) {
             let (_i, (ts, m_len, m)) = Self::parse_payload_dec(&payload_dec)?;
@@ -249,7 +262,7 @@ mod tests {
     use super::{Message, ReCmdMsg, ReCmdMsgPayload, ReCmdMsgType};
     use crate::{config::Config, crypt::Crypt};
     use bytes::BytesMut;
-    use std::rc::Rc;
+    use std::boxed::Box;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn encrypt_serialize_deserialize_decrypt(t: ReCmdMsgType, m_orig: &str, corrupt: bool) {
@@ -257,9 +270,10 @@ mod tests {
         let cfg = Config::init();
         let key = cfg.get_key();
         // Create cipher
-        let cipher = Rc::new(Crypt::new(key));
+        let cipher = Box::new(Crypt::new(key));
         // Create command string
         let m = String::from(m_orig);
+        let m_bytes = m.into_bytes();
         // Create, encrypt and serialize message
         let msg = Message::new(cipher);
         // Timestamp
@@ -267,7 +281,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut msg_enc: BytesMut = msg.encrypt_serialize(t, &m, ts).unwrap();
+        let mut msg_enc: BytesMut = msg.encrypt_serialize(t, &m_bytes, ts).unwrap();
 
         if corrupt {
             // 1 byte for type
@@ -282,13 +296,13 @@ mod tests {
                 }
             }
 
-            match msg.deserialize_decrypt(msg_enc) {
+            match msg.deserialize_decrypt(&msg_enc.to_vec()) {
                 Err(_) => assert!(true),
                 _ => assert!(false),
             }
         } else {
             // Deserialize and decrypt message
-            let msg_dec: ReCmdMsg = msg.deserialize_decrypt(msg_enc).unwrap();
+            let msg_dec: ReCmdMsg = msg.deserialize_decrypt(&msg_enc.to_vec()).unwrap();
 
             match t {
                 ReCmdMsgType::DirectCmdReq => {
@@ -299,8 +313,8 @@ mod tests {
                     } = msg_dec.payload
                     {
                         assert_eq!(ts, ts_dec);
-                        assert_eq!(m.len(), m_len_dec as usize);
-                        assert_eq!(m, m_dec);
+                        assert_eq!(m_bytes.len(), m_len_dec as usize);
+                        assert_eq!(m_bytes, m_dec);
                     }
                 }
                 ReCmdMsgType::DirectCmdRes => {
@@ -311,8 +325,8 @@ mod tests {
                     } = msg_dec.payload
                     {
                         assert_eq!(ts, ts_dec);
-                        assert_eq!(m.len(), m_len_dec as usize);
-                        assert_eq!(m, m_dec);
+                        assert_eq!(m_bytes.len(), m_len_dec as usize);
+                        assert_eq!(m_bytes, m_dec);
                     }
                 }
                 _ => {
