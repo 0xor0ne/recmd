@@ -1,4 +1,3 @@
-use shell_words;
 ///! Command module
 use std::process::Command;
 
@@ -22,17 +21,13 @@ impl Cmd {
                     Ok(output) => {
                         let mut out = output.stdout;
 
-                        if output.stderr.len() > 0 {
+                        if !output.stderr.is_empty() {
                             out.extend(output.stderr);
                         }
 
                         Ok(out)
                     }
-                    Err(e) => Err(format!(
-                        "Failed to execute the command {} ({})",
-                        self.c,
-                        e.to_string()
-                    )),
+                    Err(e) => Err(format!("Failed to execute the command {} ({})", self.c, e)),
                 }
             }
             Err(_) => Err("Splitting error".to_string()),
@@ -90,10 +85,25 @@ mod tests {
     }
 
     #[test]
+    fn bash_multiple_opts() {
+        let c = Cmd::new("bash -r -c 'VAR=test ; echo $VAR'");
+        match c.run() {
+            Ok(o) => {
+                let ostr = String::from_utf8_lossy(&o);
+                assert_eq!("test\n", ostr);
+            }
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+            }
+        }
+    }
+
+    #[test]
     fn command_does_not_exist() {
         let c = Cmd::new("xxxxyyyytttt");
         match c.run() {
-            Ok(o) => {
+            Ok(_) => {
                 assert!(false);
             }
             Err(e) => {

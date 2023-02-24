@@ -13,7 +13,9 @@ use std::thread;
 use crate::cmd::Cmd;
 use crate::config::Config;
 use crate::crypt::Crypt;
-use crate::message::{Message, MessageError, ReCmdMsg, ReCmdMsgPayload, ReCmdMsgType};
+use crate::message::{
+    Message, MessageError, ReCmdMsg, ReCmdMsgPayload, ReCmdMsgType, HDR_LEN_ON_WIRE,
+};
 
 pub struct Srv {
     port: u16,
@@ -84,7 +86,7 @@ impl Srv {
     ) -> Result<(), std::io::Error> {
         let mut data = Vec::new();
 
-        match stream.read_to_end(&mut data) {
+        match Srv::read_message(&mut stream, &mut data) {
             Ok(n) if n > 0 => {
                 match config.lock() {
                     Ok(c) => {
@@ -93,7 +95,7 @@ impl Srv {
                         let hash = Srv::get_data_sha256(&data);
 
                         // Just ignore messages already in history
-                        if let Some(_) = Srv::exist_in_history(&history, &hash) {
+                        if Srv::exist_in_history(&history, &hash).is_none() {
                             let msg_dec: ReCmdMsg = Srv::deserialize_decrypt(c.get_key(), &data)?;
 
                             // Update history
@@ -132,6 +134,43 @@ impl Srv {
         }
     }
 
+    fn read_message(stream: &mut TcpStream, buf: &mut Vec<u8>) -> Result<usize, std::io::Error> {
+        let mut hdrdata = [0u8; HDR_LEN_ON_WIRE];
+        stream.read_exact(&mut hdrdata)?;
+
+        match Message::parse_hdr(&hdrdata) {
+            Ok((_, (_, len, _))) => {
+                let len = len.try_into();
+
+                match len {
+                    Ok(len) => {
+                        let mut payloaddata: Vec<u8> = vec![0; len];
+                        let npayload = stream.read(&mut payloaddata)?;
+
+                        if npayload == len {
+                            buf.append(&mut hdrdata.to_vec());
+                            buf.append(&mut payloaddata);
+                            Ok(HDR_LEN_ON_WIRE + npayload)
+                        } else {
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Payload too short",
+                            ))
+                        }
+                    }
+                    _ => Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Conversion error",
+                    )),
+                }
+            }
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Hdr decoding error",
+            )),
+        }
+    }
+
     fn execute_command(msg: &ReCmdMsg) -> Result<Vec<u8>, std::io::Error> {
         if let ReCmdMsgPayload::DirectCmdReq {
             ts: _,
@@ -139,7 +178,7 @@ impl Srv {
             m: m_dec,
         } = &msg.payload
         {
-            let c = Cmd::new(&String::from_utf8_lossy(&m_dec));
+            let c = Cmd::new(&String::from_utf8_lossy(m_dec));
             match c.run() {
                 Ok(o) => Ok(o),
                 Err(_) => Err(std::io::Error::new(std::io::ErrorKind::Other, "Err")),
@@ -183,18 +222,18 @@ impl Srv {
 
     fn deserialize_decrypt(
         key: GenericArray<u8, U32>,
-        data: &Vec<u8>,
+        data: &[u8],
     ) -> Result<ReCmdMsg, MessageError> {
         let cipher = Box::new(Crypt::new(key));
         let msg = Message::new(cipher);
         let mut msg_enc = BytesMut::with_capacity(0);
-        msg_enc.extend_from_slice(&data);
-        msg.deserialize_decrypt(&msg_enc.to_vec())
+        msg_enc.extend_from_slice(data);
+        msg.deserialize_decrypt(&msg_enc)
     }
 
     fn get_data_sha256(data: &Vec<u8>) -> GenericArray<u8, U32> {
         let mut hasher = Sha256::new();
-        hasher.update(&data);
+        hasher.update(data);
         hasher.finalize()
     }
 

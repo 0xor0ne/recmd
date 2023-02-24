@@ -5,7 +5,7 @@ use sha2::{
 use std::time::Duration;
 
 const TCP_CONNECT_TO: Duration = Duration::new(5, 0);
-const TCP_RESP_TO: Duration = Duration::new(5, 0);
+const TCP_RESP_TO: Duration = Duration::new(30, 0);
 const TCP_WRITE_TO: Duration = Duration::new(10, 0);
 const HISTORY_DEPTH: usize = 100_000;
 const PASSWORD_DEF: &str = "1e$tob5UtRi6oFr8jlYO";
@@ -35,7 +35,7 @@ impl Config {
     }
 
     pub fn get_key(&self) -> GenericArray<u8, U32> {
-        self.key.clone()
+        self.key
     }
 
     pub fn get_history_depth(&self) -> usize {

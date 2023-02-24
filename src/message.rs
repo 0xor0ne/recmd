@@ -50,6 +50,8 @@ pub struct ReCmdMsgHdr {
     pub nonce: XNonce,
 }
 
+pub const HDR_LEN_ON_WIRE: usize = 29;
+
 #[derive(Debug)]
 pub enum ReCmdMsgPayload {
     DirectCmdReq { ts: u64, m_len: u32, m: Vec<u8> },
@@ -142,7 +144,7 @@ impl Message {
         b_payload_clear
             .write_u32::<BigEndian>(m.len().try_into().unwrap())
             .unwrap();
-        b_payload_clear.write(m).unwrap();
+        b_payload_clear.write_all(m).unwrap();
         if let Ok((nonce, b_payload_enc)) = self.cipher.encrypt(&b_payload_clear) {
             b.put_u8(t.into());
             let payload_len = b_payload_enc.len() as u32;
@@ -219,13 +221,19 @@ impl Message {
         Ok((i, (ts, m_len, m)))
     }
 
-    pub fn deserialize_decrypt(&self, data: &Vec<u8>) -> Result<ReCmdMsg, MessageError> {
+    pub fn parse_hdr(input: &[u8]) -> IResult<&[u8], (ReCmdMsgType, u32, XNonce)> {
         // parse type
-        let (i, t) = Self::parse_type(&data)?;
+        let (i, t) = Self::parse_type(input)?;
         // parse len
         let (i, len) = Self::parse_length(i)?;
         // parse nonce
         let (i, nonce) = Self::parse_nonce(i)?;
+        Ok((i, (t, len, nonce)))
+    }
+
+    pub fn deserialize_decrypt(&self, data: &[u8]) -> Result<ReCmdMsg, MessageError> {
+        // Parse header
+        let (i, (t, len, nonce)) = Self::parse_hdr(data)?;
         // parse payload enc
         let (_i, payload_enc) = Self::parse_payload_enc(i, usize::try_from(len).unwrap())?;
         // decrypt
@@ -235,24 +243,24 @@ impl Message {
             match t {
                 ReCmdMsgType::DirectCmdReq => Ok(ReCmdMsg {
                     hdr: ReCmdMsgHdr {
-                        msg_type: t.into(),
-                        len: len,
-                        nonce: nonce,
+                        msg_type: t,
+                        len,
+                        nonce,
                     },
                     payload: ReCmdMsgPayload::DirectCmdReq { ts, m_len, m },
                 }),
                 ReCmdMsgType::DirectCmdRes => Ok(ReCmdMsg {
                     hdr: ReCmdMsgHdr {
-                        msg_type: t.into(),
-                        len: len,
-                        nonce: nonce,
+                        msg_type: t,
+                        len,
+                        nonce,
                     },
                     payload: ReCmdMsgPayload::DirectCmdRes { ts, m_len, m },
                 }),
                 _ => Err(MessageError::ParseError),
             }
         } else {
-            return Err(MessageError::CryptError);
+            Err(MessageError::CryptError)
         }
     }
 }

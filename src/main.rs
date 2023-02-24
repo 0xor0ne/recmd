@@ -1,6 +1,9 @@
 // Copyright 2023 0xor0ne <0xor0ne@gmail.com>
 use argh::FromArgs;
+use std::fmt;
+use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr};
+use std::str;
 
 use recmd::snd::Snd;
 use recmd::srv::Srv;
@@ -35,21 +38,54 @@ struct ReCmdModeSndArg {
     srvip: Ipv4Addr,
     #[argh(option, short = 'p', default = "3666", description = "server port")]
     port: u16,
+    #[argh(option, short = 'c', description = "command")]
+    cmd: String,
 }
 
-fn main() {
+#[derive(Debug)]
+struct ReCmdError;
+
+impl std::error::Error for ReCmdError {}
+
+impl fmt::Display for ReCmdError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TCP error")
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: ReCmdArg = argh::from_env();
 
     match args.mode {
         ReCmdModeArg::Srv(opts) => {
             println!("Server mode {}", opts.port);
             let mut srv = Srv::new(opts.port);
-            srv.run();
+            srv.run()?;
         }
-        ReCmdModeArg::Snd(opts) => {
-            println!("Send mode {} {}", opts.srvip, opts.port);
-            let mut snd = Snd::new(IpAddr::V4(opts.srvip), opts.port, 1000);
-            snd.run();
-        }
+        ReCmdModeArg::Snd(opts) => match opts.cmd.len() {
+            0 => {
+                println!("Command can not be empty!");
+            }
+            _ => {
+                println!("Send mode {} {} \"{}\"", opts.srvip, opts.port, opts.cmd,);
+                let snd = Snd::new(
+                    IpAddr::V4(opts.srvip),
+                    opts.port,
+                    opts.cmd.as_bytes().to_vec(),
+                );
+                let output = snd.run()?;
+
+                match str::from_utf8(&output) {
+                    Ok(s) => {
+                        println!("{}", s);
+                    }
+                    _ => {
+                        std::io::stdout().write_all(&output)?;
+                    }
+                }
+            }
+        },
     }
+
+    Ok(())
 }
