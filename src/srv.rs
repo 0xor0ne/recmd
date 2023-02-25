@@ -1,3 +1,9 @@
+
+//! Server module.
+//!
+//! This module waits for requests from the sender running on a remote host, execute the requested
+//! command and return to the sender the output of the command
+
 use bytes::BytesMut;
 use sha2::{
     digest::crypto_common::generic_array::{typenum::U32, GenericArray},
@@ -179,6 +185,7 @@ impl Srv {
         } = &msg.payload
         {
             let c = Cmd::new(&String::from_utf8_lossy(m_dec));
+            println!("Executing {}", String::from_utf8_lossy(m_dec));
             match c.run() {
                 Ok(o) => Ok(o),
                 Err(_) => Err(std::io::Error::new(std::io::ErrorKind::Other, "Err")),

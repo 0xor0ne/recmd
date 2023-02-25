@@ -1,3 +1,8 @@
+
+//! Sender module.
+//!
+//! This module is in charge to send the command to a server and way the response
+
 use crate::message::{
     Message, MessageError, ReCmdMsg, ReCmdMsgPayload, ReCmdMsgType, HDR_LEN_ON_WIRE,
 };

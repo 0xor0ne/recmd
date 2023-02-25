@@ -1,4 +1,5 @@
 // Copyright 2023 0xor0ne <0xor0ne@gmail.com>
+
 use argh::FromArgs;
 use std::fmt;
 use std::io::Write;
@@ -67,7 +68,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Command can not be empty!");
             }
             _ => {
-                println!("Send mode {} {} \"{}\"", opts.srvip, opts.port, opts.cmd,);
                 let snd = Snd::new(
                     IpAddr::V4(opts.srvip),
                     opts.port,

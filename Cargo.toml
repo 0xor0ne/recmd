@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["cli", "redteam", "security", "networking"]
 categories = ["command-line-utilities", "network-programming"]
 description = """
-Execute commands remotely
+Remote Commands Executor
 """
 
 [dependencies]
