@@ -67,7 +67,7 @@ impl fmt::Display for ReCmdError {
 fn run_server(opts: ReCmdModeSrvArg) -> Result<(), Box<dyn std::error::Error>> {
     match opts.daemonize {
         true => {
-            let daemonize = Daemonize::new().umask(0o777);
+            let daemonize = Daemonize::new().umask(0o777).working_directory(".");
 
             match daemonize.start() {
                 Ok(_) => {
