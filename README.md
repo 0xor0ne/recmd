@@ -18,7 +18,14 @@ On the remote host where the command must be executed run `recmd` in server mode
 remcd srv -p 22000
 ```
 
-with the command above `recmd` will listen on port 22000 (TCP) for incoming
+If you prefer to run the server in background, you can enable the daemon mode by
+using the option `-d`:
+
+```bash
+remcd srv -p 22000 -d
+```
+
+with the commands above `recmd` will listen on port 22000 (TCP) for incoming
 command requests.
 
 For sending a command request, run `recmd` in send mode (change `1.2.3.4` with
