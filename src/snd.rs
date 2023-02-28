@@ -1,4 +1,3 @@
-
 //! Sender module.
 //!
 //! This module is in charge to send the command to a server and way the response

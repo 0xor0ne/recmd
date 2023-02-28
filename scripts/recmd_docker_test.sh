@@ -31,6 +31,6 @@ docker exec -it \
 SRVIP=`docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' testsrvrecmdbuild`
 
 echo "### Run server with:"
-echo "docker exec -it testsrvrecmdbuild target_docker/release/recmd srv -p 2222"
+echo "docker exec -it testsrvrecmdbuild target_docker/release/recmd srv -p 2222 -d"
 echo "### Run client with:"
-echo "docker exec -it testsndrecmdbuild target_docker/release/recmd snd -i ${SRVIP} -p 2222"
+echo "docker exec -it testsndrecmdbuild target_docker/release/recmd snd -i ${SRVIP} -p 2222 -c 'ls'"
