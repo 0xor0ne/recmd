@@ -1,6 +1,7 @@
 // Copyright 2023 0xor0ne <0xor0ne@gmail.com>
 
 use argh::FromArgs;
+use daemonize::Daemonize;
 use std::fmt;
 use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr};
@@ -29,6 +30,8 @@ enum ReCmdModeArg {
 struct ReCmdModeSrvArg {
     #[argh(option, short = 'p', default = "3666", description = "listening port")]
     port: u16,
+    #[argh(switch, short = 'd', description = "daemon mode (run in background)")]
+    daemonize: bool,
 }
 
 #[derive(FromArgs, PartialEq, Debug)]
@@ -54,18 +57,43 @@ impl fmt::Display for ReCmdError {
     }
 }
 
+fn run_server(opts: ReCmdModeSrvArg) -> Result<(), Box<dyn std::error::Error>> {
+    match opts.daemonize {
+        true => {
+            let daemonize = Daemonize::new().umask(0o777);
+
+            match daemonize.start() {
+                Ok(_) => {
+                    println!("Server mode {}", opts.port);
+                    let mut srv = Srv::new(opts.port);
+                    srv.run()?;
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Error: daemonize failed ({})", e);
+                    Err(Box::new(e))
+                }
+            }
+        }
+        false => {
+            println!("Server mode {}", opts.port);
+            let mut srv = Srv::new(opts.port);
+            srv.run()?;
+            Ok(())
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: ReCmdArg = argh::from_env();
 
     match args.mode {
         ReCmdModeArg::Srv(opts) => {
-            println!("Server mode {}", opts.port);
-            let mut srv = Srv::new(opts.port);
-            srv.run()?;
+            run_server(opts)?;
         }
         ReCmdModeArg::Snd(opts) => match opts.cmd.len() {
             0 => {
-                println!("Command can not be empty!");
+                eprintln!("Command can not be empty!");
             }
             _ => {
                 let snd = Snd::new(

@@ -1,4 +1,3 @@
-
 //! Server module.
 //!
 //! This module waits for requests from the sender running on a remote host, execute the requested
