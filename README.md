@@ -50,6 +50,22 @@ const PASSWORD_DEF: &str = "1e$tob5UtRi6oFr8jlYO";
 Be sure to change the value of this variable with your own password before
 building your own `recmd` executable.
 
+Alternatively, it is possible to set on-demand the password used for deriving
+the cryptographic key by setting the `RECMDK` environment variable. For using
+this methodology, run the server with (in this example the password is set to
+"mypasswd"):
+
+```bash
+RECMDK='mypasswd' remcd srv -p 22000 -d
+```
+
+and then use `recmd` in client mode like this (change `1.2.3.4` with
+the IP address of the host where the server is running):
+
+```bash
+RECMDK='mypasswd' recmd snd -a 1.2.3.4 -p 22000 -c "bash -c 'ls /etc > /tmp/out'"
+```
+
 ## License
 
 Licensed under either of

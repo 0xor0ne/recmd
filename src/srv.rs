@@ -11,7 +11,7 @@ use sha2::{
 use std::boxed::Box;
 use std::fmt;
 use std::io::{Read, Write};
-use std::net::{IpAddr, Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -23,6 +23,7 @@ use crate::message::{
 };
 
 pub struct Srv {
+    ip: IpAddr,
     port: u16,
     config: Arc<Mutex<Config>>,
     history: Arc<Mutex<Vec<GenericArray<u8, U32>>>>,
@@ -50,8 +51,9 @@ impl From<std::io::Error> for SrvError {
 }
 
 impl Srv {
-    pub fn new(port: u16) -> Self {
+    pub fn new(ip: IpAddr, port: u16) -> Self {
         Srv {
+            ip,
             port,
             config: Arc::new(Mutex::new(Config::init())),
             history: Arc::new(Mutex::new(Vec::new())),
@@ -59,10 +61,7 @@ impl Srv {
     }
 
     pub fn run(&mut self) -> Result<(), SrvError> {
-        let listener = TcpListener::bind(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            self.port,
-        ))?;
+        let listener = TcpListener::bind(SocketAddr::new(self.ip, self.port))?;
 
         println!("Server listening on port {}", self.port);
         for stream in listener.incoming() {

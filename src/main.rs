@@ -28,6 +28,13 @@ enum ReCmdModeArg {
 /// First subcommand.
 #[argh(subcommand, name = "srv", description = "server mode")]
 struct ReCmdModeSrvArg {
+    #[argh(
+        option,
+        short = 'i',
+        default = "Ipv4Addr::new(0,0,0,0)",
+        description = "binding IP address"
+    )]
+    ip: Ipv4Addr,
     #[argh(option, short = 'p', default = "3666", description = "listening port")]
     port: u16,
     #[argh(switch, short = 'd', description = "daemon mode (run in background)")]
@@ -60,12 +67,12 @@ impl fmt::Display for ReCmdError {
 fn run_server(opts: ReCmdModeSrvArg) -> Result<(), Box<dyn std::error::Error>> {
     match opts.daemonize {
         true => {
-            let daemonize = Daemonize::new().umask(0o777);
+            let daemonize = Daemonize::new().umask(0o777).working_directory(".");
 
             match daemonize.start() {
                 Ok(_) => {
                     println!("Server mode {}", opts.port);
-                    let mut srv = Srv::new(opts.port);
+                    let mut srv = Srv::new(IpAddr::V4(opts.ip), opts.port);
                     srv.run()?;
                     Ok(())
                 }
@@ -77,7 +84,7 @@ fn run_server(opts: ReCmdModeSrvArg) -> Result<(), Box<dyn std::error::Error>> {
         }
         false => {
             println!("Server mode {}", opts.port);
-            let mut srv = Srv::new(opts.port);
+            let mut srv = Srv::new(IpAddr::V4(opts.ip), opts.port);
             srv.run()?;
             Ok(())
         }

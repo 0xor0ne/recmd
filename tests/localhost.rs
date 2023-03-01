@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::thread;
 
 fn handle_srv(port: u16) {
-    let mut srv = srv::Srv::new(port);
+    let mut srv = srv::Srv::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), port);
     srv.run().unwrap();
 }
 
