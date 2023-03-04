@@ -26,6 +26,10 @@ daemonize = "0.5.0"
 hex = "0.4.3"
 
 [profile.release]
-strip = "symbols"
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
 
 [dev-dependencies]

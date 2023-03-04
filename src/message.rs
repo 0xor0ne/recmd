@@ -39,7 +39,7 @@ use std::io::Write;
 pub enum ReCmdMsgType {
     DirectCmdReq = 0,
     DirectCmdRes = 1,
-    Unknown(u8),
+    Unknown = 2,
 }
 
 /// ReCmd Message header:
@@ -109,7 +109,7 @@ impl From<u8> for ReCmdMsgType {
         match t {
             0 => ReCmdMsgType::DirectCmdReq,
             1 => ReCmdMsgType::DirectCmdRes,
-            n => ReCmdMsgType::Unknown(n),
+            _ => ReCmdMsgType::Unknown,
         }
     }
 }
@@ -119,7 +119,7 @@ impl From<ReCmdMsgType> for u8 {
         match t {
             ReCmdMsgType::DirectCmdReq => 0,
             ReCmdMsgType::DirectCmdRes => 1,
-            ReCmdMsgType::Unknown(n) => n,
+            ReCmdMsgType::Unknown => 2,
         }
     }
 }
