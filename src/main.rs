@@ -1,6 +1,7 @@
 // Copyright 2023 0xor0ne <0xor0ne@gmail.com>
 
 use argh::FromArgs;
+#[cfg(not(windows))]
 use daemonize::Daemonize;
 use std::fmt;
 use std::io::Write;
@@ -65,13 +66,14 @@ impl fmt::Display for ReCmdError {
 }
 
 fn run_server(opts: ReCmdModeSrvArg) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(windows))]
     match opts.daemonize {
         true => {
             let daemonize = Daemonize::new().umask(0o777).working_directory(".");
 
             match daemonize.start() {
                 Ok(_) => {
-                    println!("Server mode {}", opts.port);
+                    println!("Server mode {} {}", opts.ip, opts.port);
                     let mut srv = Srv::new(IpAddr::V4(opts.ip), opts.port);
                     srv.run()?;
                     Ok(())
@@ -83,11 +85,19 @@ fn run_server(opts: ReCmdModeSrvArg) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         false => {
-            println!("Server mode {}", opts.port);
+            println!("Server mode {} {}", opts.ip, opts.port);
             let mut srv = Srv::new(IpAddr::V4(opts.ip), opts.port);
             srv.run()?;
             Ok(())
         }
+    }
+
+    #[cfg(windows)]
+    {
+        println!("Server mode {}", opts.port);
+        let mut srv = Srv::new(IpAddr::V4(opts.ip), opts.port);
+        srv.run()?;
+        Ok(())
     }
 }
 
