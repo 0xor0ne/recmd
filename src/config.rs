@@ -45,6 +45,7 @@ impl Config {
             let ksha256 = hasher.finalize();
 
             if eka == ksha256 {
+                println!("FOUND");
                 pwd = v;
                 std::env::set_var(k, "");
                 break;
@@ -89,8 +90,8 @@ mod tests {
 
     #[test]
     fn init_key_default() {
-        // SHA256 of "AAAABBBBCCCC"
-        let eks = "97b9883915d85cfdd180ef552b68a583a706e6deaf49dc56353dd058e2a8b2ef";
+        // SHA256 of non existing nv variable name
+        let eks = "0000000000000000000000000000000000000000000000000000000000000000";
         // SHA256 of default password
         let expected = "ce5445b88cdccca025bfdc830363de36e4863141da0a58e5ad7b31ee4b2b67d1";
         let expected_ga = GenericArray::clone_from_slice(&hex::decode(expected).unwrap());
@@ -114,5 +115,7 @@ mod tests {
 
         assert_eq!(expected_ga, key);
         assert_eq!(std::env::var("AAAABBBBCCCC").unwrap(), "");
+
+        std::env::remove_var("AAAABBBBCCCC");
     }
 }
